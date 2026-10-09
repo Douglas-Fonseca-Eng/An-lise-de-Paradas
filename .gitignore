@@ -1,0 +1,25 @@
+# Dados reais: nunca vão para o GitHub
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+database/*
+!database/.gitkeep
+*.db
+*.sqlite
+*.xlsx
+*.xls
+*.csv
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Ambiente e editor
+.venv/
+.env
+.vscode/
+
+# Segredos do Streamlit
+.streamlit/secrets.toml
