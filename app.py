@@ -16,6 +16,7 @@ navegacao = st.navigation(
         st.Page("pages/microparadas.py", title="Microparadas"),
         st.Page("pages/eventos.py", title="Eventos"),
         st.Page("pages/qualidade_dados.py", title="Qualidade dos dados"),
+        st.Page("pages/importacao.py", title="Importação"),
     ]
 )
 barra_lateral()

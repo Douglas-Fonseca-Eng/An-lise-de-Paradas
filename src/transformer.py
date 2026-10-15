@@ -3,6 +3,7 @@ Funções de transformação (ETL) dos dados de paradas.
 
 Por enquanto: padronização dos nomes das colunas.
 """
+import datetime
 import re
 import unicodedata
 
@@ -69,10 +70,34 @@ def renomear_colunas(df):
     return df_novo, relatorio
 
 
+def _para_timedelta(valor):
+    """Uma hora do dia (datetime.time), como o Excel às vezes entrega, vira uma duração."""
+    if isinstance(valor, datetime.time):
+        return pd.Timedelta(hours=valor.hour, minutes=valor.minute, seconds=valor.second, microseconds=valor.microsecond)
+    return valor
+
+
+def _converter_duracao(serie):
+    """Converte para duração (timedelta). O que não puder ser lido vira ausente."""
+    if serie.dtype == object:
+        serie = serie.map(_para_timedelta)
+    return pd.to_timedelta(serie, errors="coerce")
+
+
+def _converter_datas(serie):
+    """
+    Converte para data e hora. Primeiro tenta o formato ISO (2026-09-01 10:30:00) e, para o que
+    sobrar, o formato brasileiro dia/mês/ano. O que não puder ser lido vira ausente.
+    """
+    iso = pd.to_datetime(serie, format="ISO8601", errors="coerce")
+    brasileiro = pd.to_datetime(serie, format="mixed", dayfirst=True, errors="coerce")
+    return iso.fillna(brasileiro)
+
+
 def padronizar_duracao(df):
     """Converte a duração para tempo de verdade e cria duracao_segundos e duracao_minutos."""
     df = df.copy()
-    df["duracao"] = pd.to_timedelta(df["duracao"], errors="coerce")
+    df["duracao"] = _converter_duracao(df["duracao"])
     df["duracao_segundos"] = df["duracao"].dt.total_seconds()
     df["duracao_minutos"] = df["duracao_segundos"] / 60
     return df
@@ -85,9 +110,9 @@ def padronizar_datas(df):
     - Regra C: fim ausente com início válido = parada em andamento (fim não é inventado).
     """
     df = df.copy()
-    inicio = pd.to_datetime(df["data_inicio"], format="mixed", errors="coerce")
-    fim = pd.to_datetime(df["data_fim"], format="mixed", errors="coerce")
-    duracao = pd.to_timedelta(df["duracao"], errors="coerce")
+    inicio = _converter_datas(df["data_inicio"])
+    fim = _converter_datas(df["data_fim"])
+    duracao = _converter_duracao(df["duracao"])
 
     reconstruir = inicio.isna() & fim.notna() & duracao.notna()
     inicio = inicio.where(~reconstruir, fim - duracao)
@@ -226,4 +251,30 @@ def criar_features_basicas(df):
     fim_anterior = ordenado.groupby("ct")["data_fim"].shift()
     intervalo = (ordenado["data_inicio"] - fim_anterior).dt.total_seconds() / 60
     df["intervalo_anterior_min"] = intervalo
+    return df
+
+
+def padronizar_inteiros(df):
+    """Garante números inteiros em id_origem e quebra. O que não for inteiro vira ausente."""
+    df = df.copy()
+    for coluna in ["id_origem", "quebra"]:
+        if coluna in df.columns:
+            numeros = pd.to_numeric(df[coluna], errors="coerce")
+            df[coluna] = numeros.where(numeros % 1 == 0).astype("Int64")
+    return df
+
+
+def aplicar_etl(df_renomeado):
+    """
+    Cadeia completa do ETL, para uma tabela cujas colunas já têm os nomes internos
+    (veja renomear_colunas). A ordem importa.
+    """
+    df = padronizar_duracao(df_renomeado)
+    df = padronizar_datas(df)
+    df = limpar_texto(df)
+    df = padronizar_ct(df)
+    df = tratar_ausentes(df)
+    df = padronizar_inteiros(df)
+    df = marcar_duplicados(df)
+    df = atribuir_turno(df)
     return df

@@ -118,3 +118,12 @@ def detalhes_da_parada(parada):
         ("Quebra", quebra),
     ]
     return quando, o_que
+
+
+def formatar_tamanho(bytes_):
+    """881399 -> '860,7 KB'"""
+    if bytes_ < 1024:
+        return f"{bytes_} B"
+    if bytes_ < 1024 ** 2:
+        return f"{formatar_decimal(bytes_ / 1024, 1)} KB"
+    return f"{formatar_decimal(bytes_ / 1024 ** 2, 1)} MB"

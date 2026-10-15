@@ -12,9 +12,7 @@ import pandas as pd
 from sqlalchemy import insert, select
 
 from src.tabelas import arquivos_importados, paradas
-from src.transformer import (atribuir_turno, limpar_texto, marcar_duplicados, padronizar_ct,
-                             padronizar_datas, padronizar_duracao, renomear_colunas,
-                             tratar_ausentes)
+from src.transformer import aplicar_etl, renomear_colunas
 
 # Colunas do DataFrame que vão para a tabela "paradas".
 COLUNAS_PARADAS = [
@@ -41,14 +39,7 @@ def processar_planilha(caminho):
     df, relatorio = renomear_colunas(df)
     if relatorio["obrigatorias_ausentes"]:
         raise ValueError(f"Colunas obrigatórias ausentes: {relatorio['obrigatorias_ausentes']}")
-    df = padronizar_duracao(df)
-    df = padronizar_datas(df)
-    df = limpar_texto(df)
-    df = padronizar_ct(df)
-    df = tratar_ausentes(df)
-    df = marcar_duplicados(df)
-    df = atribuir_turno(df)
-    return df
+    return aplicar_etl(df)
 
 
 def classificar_registros(df, ids_existentes):
@@ -151,3 +142,28 @@ def listar_arquivos_importados(engine):
 
     with engine.connect() as conexao:
         return pd.read_sql(consulta, conexao)
+
+
+def calcular_hash_conteudo(conteudo):
+    """Impressão digital (SHA-256) de um conteúdo em memória. Igual à do arquivo com o mesmo conteúdo."""
+    return hashlib.sha256(conteudo).hexdigest()
+
+
+def obter_ids_existentes(engine):
+    """Conjunto dos id_origem que já estão gravados no banco."""
+    with engine.connect() as conexao:
+        return set(conexao.execute(select(paradas.c.id_origem)).scalars())
+
+
+def buscar_arquivo_importado(engine, hash_arquivo):
+    """Dados do arquivo já importado com este conteúdo, ou None se ele nunca foi importado."""
+    consulta = select(
+        arquivos_importados.c.id,
+        arquivos_importados.c.nome_arquivo,
+        arquivos_importados.c.data_importacao,
+    ).where(arquivos_importados.c.hash_arquivo == hash_arquivo)
+    with engine.connect() as conexao:
+        linha = conexao.execute(consulta).first()
+    if linha is None:
+        return None
+    return {"id": linha[0], "nome_arquivo": linha[1], "data_importacao": linha[2]}
