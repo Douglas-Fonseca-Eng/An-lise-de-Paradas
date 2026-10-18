@@ -1,10 +1,12 @@
 import pandas as pd
 import streamlit as st
 
+from config.settings import PASTA_IMPORTADOS
 from src.analytics import obter_versao_dados
 from src.components import cartao
 from src.dashboard import cabecalho, obter_motor
-from src.importer import buscar_arquivo_importado, calcular_hash_conteudo, obter_ids_existentes
+from src.importer import (buscar_arquivo_importado, calcular_hash_conteudo, importar_dataframe,
+                          obter_ids_existentes)
 from src.leitura import aba_sugerida, extensao_do_arquivo, ler_arquivo, listar_abas
 from src.previa import SITUACOES, montar_previa, problemas_por_linha
 from src.utils import formatar_decimal, formatar_inteiro, formatar_tamanho
@@ -42,6 +44,21 @@ def baixar_csv(tabela, nome_arquivo):
 
 cabecalho("Importação", "Envie uma nova planilha de paradas (Excel ou CSV).")
 
+# Resultado de uma importação feita logo antes: aparece uma única vez.
+resultado = st.session_state.pop("resultado_importacao", None)
+if resultado:
+    if resultado["status"] == "importado":
+        st.success(
+            f"Importação concluída: {formatar_inteiro(resultado['novos'])} registros novos gravados "
+            f"(arquivo nº {resultado['arquivo_id']}). Ignorados: {formatar_inteiro(resultado['ja_existentes'])} "
+            f"já existentes e {formatar_inteiro(resultado['repetidos_no_arquivo'])} repetidos no arquivo. "
+            f"Recusados: {formatar_inteiro(resultado['invalidos'])} inválidos."
+        )
+        if resultado.get("copia_salva") is False:
+            st.warning("Os dados foram gravados, mas não foi possível guardar uma cópia do arquivo original.")
+    else:
+        st.info("Este arquivo já tinha sido importado. Nada foi gravado.")
+
 arquivo = st.file_uploader(
     "Selecione o arquivo",
     type=["xlsx", "csv"],
@@ -49,10 +66,11 @@ arquivo = st.file_uploader(
 )
 
 if arquivo is None:
-    st.info("Selecione um arquivo para começar. Nada é gravado no banco de dados nesta etapa.")
+    st.info("Selecione um arquivo para começar. Nada é gravado até você confirmar a importação.")
     st.stop()
 
 conteudo = arquivo.getvalue()
+hash_arquivo = calcular_hash_conteudo(conteudo)
 extensao = extensao_do_arquivo(arquivo.name)
 
 aba = None
@@ -147,7 +165,7 @@ if avisos:
 st.subheader("Prévia da importação")
 
 motor = obter_motor()
-ja_importado = buscar_arquivo_importado(motor, calcular_hash_conteudo(conteudo))
+ja_importado = buscar_arquivo_importado(motor, hash_arquivo)
 if ja_importado:
     st.info(
         "Este arquivo, com exatamente este conteúdo, já foi importado em "
@@ -208,7 +226,23 @@ else:
     if len(tabela) > LINHAS_MAXIMAS:
         st.caption(f"Mostrando os {LINHAS_MAXIMAS} primeiros de {formatar_inteiro(len(tabela))} registros.")
 
-st.caption(
-    "Nada foi gravado. Esta é só uma prévia do que aconteceria. No próximo passo, a importação só "
-    "acontece depois da sua confirmação."
-)
+st.subheader("Confirmar importação")
+novos = contagens["Novo"]
+if novos == 0:
+    st.info("Não há registros novos neste arquivo, então não há nada para importar.")
+else:
+    ignorados = relatorio["total"] - novos
+    st.write(
+        f"Serão gravados **{formatar_inteiro(novos)}** registros novos. Os outros {formatar_inteiro(ignorados)} "
+        "não serão gravados, e nada que já está no banco será alterado ou apagado."
+    )
+    confirmado = st.checkbox("Revisei a prévia e confirmo a importação", key=f"confirmo_{hash_arquivo}")
+    if st.button(f"Importar {formatar_inteiro(novos)} registros novos", type="primary", disabled=not confirmado):
+        try:
+            with st.spinner("Importando..."):
+                resultado = importar_dataframe(arquivo.name, conteudo, df, motor, pasta_copia=PASTA_IMPORTADOS)
+        except Exception as erro:
+            st.error(f"A importação falhou e nada foi gravado ({type(erro).__name__}): {erro}")
+        else:
+            st.session_state["resultado_importacao"] = resultado
+            st.rerun()

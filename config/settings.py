@@ -21,3 +21,5 @@ LIMITES_PARADA_LONGA_MIN = [5, 30, 60]
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 CAMINHO_BANCO = RAIZ_PROJETO / "database" / "paradas.db"
 URL_BANCO = f"sqlite:///{CAMINHO_BANCO.as_posix()}"
+# Cópia de cada arquivo importado pela interface (fica fora do Git, junto com os demais dados).
+PASTA_IMPORTADOS = RAIZ_PROJETO / "data" / "importados"
