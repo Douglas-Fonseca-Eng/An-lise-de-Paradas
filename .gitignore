@@ -23,3 +23,11 @@ __pycache__/
 
 # Segredos do Streamlit
 .streamlit/secrets.toml
+
+
+# Cópias de arquivos importados e modelos treinados
+data/importados/
+data/modelos/
+*.joblib
+*.pkl
+*.cbm

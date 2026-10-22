@@ -23,3 +23,6 @@ CAMINHO_BANCO = RAIZ_PROJETO / "database" / "paradas.db"
 URL_BANCO = f"sqlite:///{CAMINHO_BANCO.as_posix()}"
 # Cópia de cada arquivo importado pela interface (fica fora do Git, junto com os demais dados).
 PASTA_IMPORTADOS = RAIZ_PROJETO / "data" / "importados"
+
+# Modelos treinados (arquivos). Ficam fora do Git, junto com os demais dados.
+PASTA_MODELOS = RAIZ_PROJETO / "data" / "modelos"

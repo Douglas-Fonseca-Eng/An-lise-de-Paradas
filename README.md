@@ -68,16 +68,13 @@ O dashboard abre em `http://localhost:8501`.
 
 ## Como importar dados
 
-1. Copie a planilha (aba `Paradas`) para a pasta `data/raw`.
-2. Execute o script de importação:
+1. Abra a página **Importação** e envie a planilha (Excel `.xlsx`, aba `Paradas`, ou CSV).
+2. O sistema lê e valida o arquivo: mostra as colunas reconhecidas, os registros inválidos (com a linha do arquivo e o motivo), os IDs repetidos e os avisos.
+3. Confira a **prévia**: quantos registros são novos, quantos já existem no banco e quantos serão recusados ou ignorados.
+4. Marque a confirmação e clique em **Importar**. Só os registros novos são gravados, nada é sobrescrito, e cada parada guarda o arquivo de origem. Uma cópia do arquivo fica em `data/importados/` (não versionada).
+5. O dashboard se atualiza sozinho, com os filtros acompanhando o novo período.
 
-```
-python testar_importacao.py
-```
-
-O script mostra um resumo: quantos registros eram novos, quantos já existiam, quantos estavam repetidos no arquivo e quantos eram inválidos. Importar o mesmo arquivo de novo é recusado com segurança.
-
-> A importação pela interface (upload, pré-validação e confirmação) está prevista para a próxima fase. O script acima é provisório.
+Importar de novo um arquivo com o mesmo conteúdo é recusado com segurança. Tudo acontece em uma única transação: se algo falhar, nada é gravado.
 
 ## Estrutura do projeto
 
@@ -87,6 +84,9 @@ O script mostra um resumo: quantos registros eram novos, quantos já existiam, q
 ├── pages/                 # páginas do dashboard
 ├── src/
 │   ├── transformer.py     # ETL: nomes de colunas, datas, textos, CT, ausentes, duplicados, turnos
+│   ├── leitura.py         # leitura de Excel e CSV enviados (em memória)
+│   ├── validacao.py       # validação do arquivo: colunas, registros inválidos, repetidos, avisos
+│   ├── previa.py          # prévia da importação: novo, já existe, repetido, inválido
 │   ├── importer.py        # importação para o banco (transação única, só registros novos)
 │   ├── database.py        # conexão com o banco
 │   ├── tabelas.py         # definição das tabelas
@@ -102,7 +102,7 @@ O script mostra um resumo: quantos registros eram novos, quantos já existiam, q
 │   ├── settings.py        # limites, CTs conhecidas e caminho do banco
 │   ├── shifts.py          # horários dos turnos
 │   └── theme.py           # cores dos gráficos
-├── data/                  # planilhas (conteúdo não versionado)
+├── data/                  # planilhas e cópias dos arquivos importados (conteúdo não versionado)
 ├── database/              # banco SQLite (conteúdo não versionado)
 ├── .streamlit/config.toml # tema do dashboard
 ├── testar_*.py            # scripts de verificação de cada etapa

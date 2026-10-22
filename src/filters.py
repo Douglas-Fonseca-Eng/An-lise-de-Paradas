@@ -104,3 +104,15 @@ def buscar_texto(df, texto, colunas=COLUNAS_BUSCA):
         textos = df[coluna].astype("object").fillna("").astype(str)
         mascara |= textos.str.contains(texto, case=False, regex=False)
     return df[mascara]
+
+
+def periodo_apos_nova_importacao(selecionado, intervalo_anterior, intervalo_atual):
+    """
+    Decide o período do filtro quando a base de dados pode ter crescido.
+    Se o usuário estava vendo o período completo dos dados e o intervalo mudou, acompanha o novo
+    intervalo. Se ele tinha escolhido um período próprio, mantém a escolha.
+    """
+    if (intervalo_anterior is not None and intervalo_anterior != intervalo_atual
+            and tuple(selecionado) == intervalo_anterior):
+        return intervalo_atual
+    return selecionado

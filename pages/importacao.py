@@ -56,6 +56,7 @@ if resultado:
         )
         if resultado.get("copia_salva") is False:
             st.warning("Os dados foram gravados, mas não foi possível guardar uma cópia do arquivo original.")
+        st.page_link("pages/visao_geral.py", label="Ver o dashboard atualizado")
     else:
         st.info("Este arquivo já tinha sido importado. Nada foi gravado.")
 
